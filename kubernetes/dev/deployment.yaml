@@ -6,7 +6,7 @@ metadata:
   namespace: dev
 
 spec:
-  replicas: 1
+  replicas: 3
 
   selector:
     matchLabels:
@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: dev
-          image: ghcr.io/k-kanke/dev-workspace:0.3
+          image: ghcr.io/k-kanke/dev-workspace:0.4
 
           command: ["sleep", "infinity"]
 
