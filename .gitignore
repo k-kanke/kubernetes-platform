@@ -1,0 +1,23 @@
+# Kubernetes
+.kube/
+
+# SSH
+*.pem
+*.key
+id_rsa
+id_ed25519
+
+# Environment
+.env
+.env.*
+
+# macOS
+.DS_Store
+
+# VSCode
+.vscode/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
