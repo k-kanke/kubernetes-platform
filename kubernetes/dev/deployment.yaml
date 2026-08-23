@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: dev
-          image: ghcr.io/k-kanke/dev-workspace:0.4
+          image: ghcr.io/k-kanke/dev-workspace:0.5
 
           command: ["sleep", "infinity"]
 
