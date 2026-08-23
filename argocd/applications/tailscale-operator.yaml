@@ -13,7 +13,7 @@ spec:
     chart: tailscale-operator
 
     # Tailscaleのリリースと合わせて固定する
-    targetRevision: 1.98.8
+    targetRevision: 1.102.2
 
     helm:
       values: |
