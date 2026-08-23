@@ -24,6 +24,9 @@ spec:
 
           command: ["sleep", "infinity"]
 
+          ports:
+            - containerPort: 3000
+
           volumeMounts:
             - name: workspace
               mountPath: /workspace
