@@ -6,6 +6,9 @@ metadata:
   namespace: apps
 
 spec:
+  type: LoadBalancer
+  loadBalancerClass: tailscale
+
   selector:
     app: web-app
 
@@ -14,4 +17,3 @@ spec:
       port: 80
       targetPort: 80
 
-  type: ClusterIP
