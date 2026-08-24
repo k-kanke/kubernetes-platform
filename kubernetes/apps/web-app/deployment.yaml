@@ -20,6 +20,6 @@ spec:
     spec:
       containers:
         - name: web-app
-          image: ghcr.io/k-kanke/web-app:latest
+          image: ghcr.io/k-kanke/web-app:b26fabdec0f0f5df7c0f3ba377690fc4ea11218b
           ports:
             - containerPort: 3000
