@@ -20,6 +20,6 @@ spec:
     spec:
       containers:
         - name: web-app
-          image: nginx:1.29
+          image: ghcr.io/k-kanke/web-app:latest
           ports:
-            - containerPort: 80
+            - containerPort: 3000
