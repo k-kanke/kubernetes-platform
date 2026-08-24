@@ -22,6 +22,13 @@ RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
 
 RUN npm install -g @openai/codex
 
+RUN git config --system --add safe.directory /workspace
+RUN git config --system user.name "k-kanke"
+RUN git config --system user.email "kanke.kooooo01@gmail.com"
+
+RUN mkdir -p /root/.ssh \
+    && ssh-keyscan github.com >> /root/.ssh/known_hosts
+
 WORKDIR /workspace
 
 CMD ["sleep", "infinity"]
