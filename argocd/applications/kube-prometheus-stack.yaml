@@ -13,6 +13,17 @@ spec:
     chart: kube-prometheus-stack
     targetRevision: 88.5.4
 
+    helm:
+      values: |
+        grafana:
+          startupProbe:
+            httpGet:
+              path: /api/health
+              port: grafana
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 60
+
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring
