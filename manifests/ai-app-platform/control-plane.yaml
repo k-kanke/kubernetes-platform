@@ -53,6 +53,12 @@ spec:
               value: http://control-plane.platform-system.svc:8080
             - name: AAP_STORAGE_CLASS
               value: local-path # StorageClass for per-app Source/Data PVCs
+            - name: AAP_INGRESS_CLASS
+              value: nginx
+            - name: AAP_INGRESS_HOST_PATTERN
+              value: "{id}.kanke-aap-gen.com" # single label: covered by Cloudflare's free wildcard cert
+            - name: AAP_APP_URL_TEMPLATE
+              value: "https://{id}.kanke-aap-gen.com"
             - name: AAP_AGENT_IMAGE
               value: ghcr.io/k-kanke/ai-app-platform/agent-runtime:latest
             - name: AAP_RUNTIME_IMAGE

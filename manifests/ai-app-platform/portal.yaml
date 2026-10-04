@@ -41,7 +41,6 @@ spec:
             capabilities:
               drop: ["ALL"]
 ---
-# Exposure (Tailscale / Ingress) is decided in Phase 0 "Gateway / access path".
 apiVersion: v1
 kind: Service
 metadata:
@@ -54,3 +53,29 @@ spec:
     - name: http
       port: 80
       targetPort: http
+---
+# Public entry for the family: Cloudflare Tunnel -> ingress-nginx -> Portal.
+# MUST be protected by Cloudflare Access (see ai-app-platform/docs/exposure.md);
+# the Portal itself has no login.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: portal
+  namespace: platform-system
+  annotations:
+    # Progress is streamed over SSE: do not buffer, allow long-lived responses.
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: portal.kanke-aap-gen.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: portal
+                port:
+                  name: http
