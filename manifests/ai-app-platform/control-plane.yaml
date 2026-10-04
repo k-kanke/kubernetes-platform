@@ -6,6 +6,7 @@ metadata:
   namespace: platform-system
 spec:
   accessModes: ["ReadWriteOnce"]
+  storageClassName: local-path # manifests/storage/local-path
   resources:
     requests:
       storage: 1Gi
@@ -50,6 +51,8 @@ spec:
               value: /var/lib/aap/control-plane.db
             - name: AAP_INTERNAL_URL
               value: http://control-plane.platform-system.svc:8080
+            - name: AAP_STORAGE_CLASS
+              value: local-path # StorageClass for per-app Source/Data PVCs
             - name: AAP_AGENT_IMAGE
               value: ghcr.io/k-kanke/ai-app-platform/agent-runtime:latest
             - name: AAP_RUNTIME_IMAGE

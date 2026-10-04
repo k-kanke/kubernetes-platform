@@ -1,0 +1,8 @@
+# Dynamic PVC provisioning for the home cluster (hostPath-backed, per node).
+# Needed by ai-app-platform: every generated app gets a Source PVC and a Data PVC.
+# Data lives under /opt/local-path-provisioner on the node where the PVC was first used.
+# NOT the default StorageClass: existing workloads keep using their explicit classes.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - github.com/rancher/local-path-provisioner/deploy?ref=v0.0.37

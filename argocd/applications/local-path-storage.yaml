@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: local-path-storage
+  namespace: argocd
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/k-kanke/kubernetes-platform.git
+    targetRevision: HEAD
+    path: manifests/storage/local-path
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: local-path-storage
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true
