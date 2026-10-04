@@ -1,0 +1,90 @@
+# aap-apps: default deny, then open only what each role needs.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+  namespace: aap-apps
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress", "Egress"]
+---
+# Agent Jobs: DNS, the Control Plane (progress), and HTTPS out (LLM API, npm).
+# Not allowed: other apps, the cluster API, the home LAN (RFC1918) .
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: agent-egress
+  namespace: aap-apps
+spec:
+  podSelector:
+    matchLabels:
+      aap.dev/role: agent
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: platform-system
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: control-plane
+      ports:
+        - { protocol: TCP, port: 8080 }
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except: ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "100.64.0.0/10"]
+      ports:
+        - { protocol: TCP, port: 443 }
+---
+# Running apps accept traffic from the ingress controller / gateway only and
+# may not call out (data stays in the app).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: runtime-ingress
+  namespace: aap-apps
+spec:
+  podSelector:
+    matchLabels:
+      aap.dev/role: runtime
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - { protocol: TCP, port: 8080 }
+---
+# platform-system: only Agent Jobs (and the Portal, added with it) may reach the Control Plane.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: control-plane-ingress
+  namespace: platform-system
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: control-plane
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: aap-apps
+          podSelector:
+            matchLabels:
+              aap.dev/role: agent
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: portal
+      ports:
+        - { protocol: TCP, port: 8080 }

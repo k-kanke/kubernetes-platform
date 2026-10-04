@@ -1,0 +1,24 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ai-app-platform
+  namespace: argocd
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/k-kanke/kubernetes-platform.git
+    targetRevision: HEAD
+    path: manifests/ai-app-platform
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: platform-system
+
+  # Argo CD owns the *static* platform only (Control Plane, RBAC, NetworkPolicy).
+  # Generated apps in aap-apps are created by the Control Plane at runtime and
+  # carry no Argo tracking label, so prune/selfHeal never touches them.
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

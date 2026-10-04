@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: platform-system
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+---
+# Generated apps and Agent Jobs live here. `baseline` is the strictest level that
+# still allows the platform's short-lived helper Job (CHOWN/FOWNER/DAC_OVERRIDE);
+# everything else is created with a restricted-compatible securityContext.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: aap-apps
+  labels:
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/warn: restricted
