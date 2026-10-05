@@ -67,7 +67,7 @@ spec:
               command: ["/bin/sh", "/scripts/backup.sh"]
               env:
                 - name: RESTIC_REPOSITORY
-                  value: s3:https://3d02f033a8caea8ea349d05b4a3b8c60.r2.cloudflarestorage.com/kanke-aap-backup/restic
+                  value: s3:https://3d02f033a8caea8ea349d05b4a3b8c60.r2.cloudflarestorage.com/kanke-aap-gen-backup/restic
                 - name: AWS_DEFAULT_REGION
                   value: auto
                 - name: RESTIC_CACHE_DIR
