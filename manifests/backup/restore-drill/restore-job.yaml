@@ -1,0 +1,57 @@
+# Restore drill: restores the latest snapshot into an emptyDir and lists it.
+# It NEVER writes to /opt/local-path-provisioner. Apply by hand:
+#   kubectl apply -f manifests/backup/restore-drill/restore-job.yaml
+#   kubectl -n backup logs -f job/restic-restore-drill
+#   kubectl -n backup delete job restic-restore-drill
+# To restore a specific app for real, see ai-app-platform/docs/backup-restore.md
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: restic-restore-drill
+  namespace: backup
+spec:
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 3600
+  template:
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      containers:
+        - name: restic
+          image: restic/restic:0.19.1
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -eu
+              restic snapshots
+              restic restore latest --target /restore
+              echo "--- restored PVC directories:"; ls /restore/data
+              echo "--- control plane db:"; find /restore -name 'control-plane.db*' -exec ls -l {} \;
+              echo "--- app data files:"; find /restore -path '*aap-gen-*-data*' -type f | head -20
+          env:
+            - name: RESTIC_REPOSITORY
+              value: s3:https://3d02f033a8caea8ea349d05b4a3b8c60.r2.cloudflarestorage.com/kanke-aap-backup/restic
+            - name: AWS_DEFAULT_REGION
+              value: auto
+            - name: RESTIC_CACHE_DIR
+              value: /cache
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom: { secretKeyRef: { name: restic-r2, key: access-key-id } }
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom: { secretKeyRef: { name: restic-r2, key: secret-access-key } }
+            - name: RESTIC_PASSWORD
+              valueFrom: { secretKeyRef: { name: restic-r2, key: restic-password } }
+          securityContext:
+            runAsUser: 0
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+              add: ["CHOWN", "FOWNER", "DAC_OVERRIDE"]
+          volumeMounts:
+            - { name: restore, mountPath: /restore }
+            - { name: cache, mountPath: /cache }
+      volumes:
+        - name: restore
+          emptyDir: {}
+        - name: cache
+          emptyDir: {}
