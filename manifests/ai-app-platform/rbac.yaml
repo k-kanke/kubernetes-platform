@@ -15,6 +15,13 @@ rules:
   - apiGroups: [""]
     resources: ["persistentvolumeclaims", "services"]
     verbs: ["create", "get", "list", "delete"]
+  # Read-only: lets the Control Plane explain why an Agent Job failed (log tail).
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get"]
   - apiGroups: ["batch"]
     resources: ["jobs"]
     verbs: ["create", "get", "list", "delete", "deletecollection"]
