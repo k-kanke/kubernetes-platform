@@ -53,8 +53,8 @@ metadata:
   namespace: aap-apps
 spec:
   podSelector:
-    matchLabels:
-      aap.dev/role: runtime
+    matchExpressions:
+      - { key: aap.dev/role, operator: In, values: ["runtime", "preview"] }
   policyTypes: ["Ingress"]
   ingress:
     - from:
@@ -100,8 +100,8 @@ metadata:
   namespace: aap-apps
 spec:
   podSelector:
-    matchLabels:
-      aap.dev/role: runtime
+    matchExpressions:
+      - { key: aap.dev/role, operator: In, values: ["runtime", "preview"] }
   policyTypes: ["Egress"]
   egress:
     - to:
