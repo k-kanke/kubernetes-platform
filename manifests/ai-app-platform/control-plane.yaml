@@ -66,7 +66,9 @@ spec:
             - name: AAP_HELPER_IMAGE
               value: busybox:1.37
             - name: AAP_AGENT
-              value: template # template (offline stub) | claude (needs INSTALL_CLAUDE image + agent-credentials)
+              value: gemini # template (offline stub) | gemini | claude; needs Secret aap-apps/agent-credentials
+            - name: AAP_GEMINI_MODEL
+              value: gemini-3.8-flash # only used when AAP_AGENT=gemini
             - name: AAP_AGENT_SECRET_NAME
               value: agent-credentials # optional Secret in aap-apps with ANTHROPIC_API_KEY
             - name: AAP_TOKEN_SECRET
