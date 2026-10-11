@@ -1,0 +1,442 @@
+# Grafana dashboard: which node runs which app Pod, and how full each node is.
+# Loaded automatically by the Grafana sidecar (label grafana_dashboard=1); no Grafana restart needed.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dashboard-aap-nodes
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  aap-nodes.json: |
+    {
+      "uid": "aap-nodes",
+      "title": "AAP: ノードとアプリの配置",
+      "tags": [
+        "aap"
+      ],
+      "timezone": "Asia/Tokyo",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "30s",
+      "time": {
+        "from": "now-3h",
+        "to": "now"
+      },
+      "templating": {
+        "list": [
+          {
+            "name": "ds",
+            "type": "datasource",
+            "query": "prometheus",
+            "label": "データソース",
+            "current": {}
+          }
+        ]
+      },
+      "panels": [
+        {
+          "id": 1,
+          "type": "stat",
+          "title": "アプリの Pod 数(ノード別)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds}"
+          },
+          "gridPos": {
+            "x": 0,
+            "y": 0,
+            "w": 6,
+            "h": 5
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${ds}"
+              },
+              "expr": "count by (node) (kube_pod_info{namespace=\"aap-apps\"} * on(namespace,pod) group_left() (kube_pod_status_phase{namespace=\"aap-apps\",phase=\"Running\"}==1)) or on(node) (0*kube_node_info)",
+              "legendFormat": "{{node}}",
+              "refId": "A",
+              "instant": true,
+              "range": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": []
+          },
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "textMode": "value_and_name",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            }
+          },
+          "description": "aap-apps で Running の Pod(常駐のアプリ + 実行中の Job)"
+        },
+        {
+          "id": 2,
+          "type": "bargauge",
+          "title": "メモリ requests の割り当て率",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds}"
+          },
+          "gridPos": {
+            "x": 6,
+            "y": 0,
+            "w": 6,
+            "h": 5
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${ds}"
+              },
+              "expr": "100*(sum by (node)(kube_pod_container_resource_requests{resource=\"memory\"}) or on(node) (0*kube_node_status_allocatable{resource=\"memory\"})) / on(node) kube_node_status_allocatable{resource=\"memory\"}",
+              "legendFormat": "{{node}}",
+              "refId": "A",
+              "instant": true,
+              "range": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "min": 0,
+              "max": 100,
+              "unit": "percent",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "orange",
+                    "value": 70
+                  },
+                  {
+                    "color": "red",
+                    "value": 90
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "orientation": "horizontal",
+            "displayMode": "gradient",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            }
+          },
+          "description": "スケジューラが見ているのは実使用量ではなく requests"
+        },
+        {
+          "id": 3,
+          "type": "bargauge",
+          "title": "CPU requests の割り当て率",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds}"
+          },
+          "gridPos": {
+            "x": 12,
+            "y": 0,
+            "w": 6,
+            "h": 5
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${ds}"
+              },
+              "expr": "100*(sum by (node)(kube_pod_container_resource_requests{resource=\"cpu\"}) or on(node) (0*kube_node_status_allocatable{resource=\"cpu\"})) / on(node) kube_node_status_allocatable{resource=\"cpu\"}",
+              "legendFormat": "{{node}}",
+              "refId": "A",
+              "instant": true,
+              "range": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "min": 0,
+              "max": 100,
+              "unit": "percent",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "orange",
+                    "value": 70
+                  },
+                  {
+                    "color": "red",
+                    "value": 90
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "orientation": "horizontal",
+            "displayMode": "gradient",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            }
+          }
+        },
+        {
+          "id": 4,
+          "type": "bargauge",
+          "title": "ディスクの空き(/)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds}"
+          },
+          "gridPos": {
+            "x": 18,
+            "y": 0,
+            "w": 6,
+            "h": 5
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${ds}"
+              },
+              "expr": "100*(node_filesystem_avail_bytes{mountpoint=\"/\",fstype!=\"tmpfs\"} / node_filesystem_size_bytes{mountpoint=\"/\",fstype!=\"tmpfs\"}) * on(instance) group_left(node) label_replace(kube_node_info,\"instance\",\"$1:9100\",\"internal_ip\",\"(.*)\")",
+              "legendFormat": "{{node}}",
+              "refId": "A",
+              "instant": true,
+              "range": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "min": 0,
+              "max": 100,
+              "unit": "percent",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "red",
+                    "value": null
+                  },
+                  {
+                    "color": "orange",
+                    "value": 20
+                  },
+                  {
+                    "color": "green",
+                    "value": 40
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "orientation": "horizontal",
+            "displayMode": "gradient",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            }
+          },
+          "description": "local-path のデータはここに置かれる。PVC 単位の使用量は local-path では取れない"
+        },
+        {
+          "id": 5,
+          "type": "table",
+          "title": "どのノードにどのアプリの Pod があるか",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds}"
+          },
+          "gridPos": {
+            "x": 0,
+            "y": 5,
+            "w": 12,
+            "h": 9
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${ds}"
+              },
+              "expr": "kube_pod_info{namespace=\"aap-apps\"}",
+              "legendFormat": "",
+              "refId": "A",
+              "instant": true,
+              "range": false,
+              "format": "table"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": []
+          },
+          "options": {},
+          "transformations": [
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Time": true,
+                  "Value": true,
+                  "__name__": true,
+                  "job": true,
+                  "instance": true,
+                  "endpoint": true,
+                  "service": true,
+                  "container": true,
+                  "namespace": true,
+                  "uid": true,
+                  "pod_ip": true,
+                  "prometheus": true,
+                  "created_by_kind": true,
+                  "host_network": true,
+                  "priority_class": true
+                },
+                "renameByName": {
+                  "pod": "Pod",
+                  "node": "ノード",
+                  "host_ip": "ノードIP",
+                  "created_by_name": "作成元"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": 6,
+          "type": "timeseries",
+          "title": "メモリ使用量(Pod 別)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds}"
+          },
+          "gridPos": {
+            "x": 12,
+            "y": 5,
+            "w": 12,
+            "h": 9
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${ds}"
+              },
+              "expr": "sum by (pod,node) (container_memory_working_set_bytes{namespace=\"aap-apps\",container!=\"\"} * on(namespace,pod) group_left(node) kube_pod_info)",
+              "legendFormat": "{{node}} / {{pod}}",
+              "refId": "A",
+              "instant": false,
+              "range": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "bytes"
+            },
+            "overrides": []
+          },
+          "options": {},
+          "description": "Agent の Job は一時的に 200MiB 前後まで使う"
+        },
+        {
+          "id": 7,
+          "type": "timeseries",
+          "title": "ノードのメモリ使用率",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds}"
+          },
+          "gridPos": {
+            "x": 0,
+            "y": 14,
+            "w": 12,
+            "h": 8
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${ds}"
+              },
+              "expr": "100*(1-node_memory_MemAvailable_bytes/node_memory_MemTotal_bytes) * on(instance) group_left(node) label_replace(kube_node_info,\"instance\",\"$1:9100\",\"internal_ip\",\"(.*)\")",
+              "legendFormat": "{{node}}",
+              "refId": "A",
+              "instant": false,
+              "range": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "min": 0,
+              "max": 100
+            },
+            "overrides": []
+          },
+          "options": {}
+        },
+        {
+          "id": 8,
+          "type": "timeseries",
+          "title": "CPU 使用量(Pod 別)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds}"
+          },
+          "gridPos": {
+            "x": 12,
+            "y": 14,
+            "w": 12,
+            "h": 8
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${ds}"
+              },
+              "expr": "sum by (pod,node) (rate(container_cpu_usage_seconds_total{namespace=\"aap-apps\",container!=\"\"}[5m]) * on(namespace,pod) group_left(node) kube_pod_info)",
+              "legendFormat": "{{node}} / {{pod}}",
+              "refId": "A",
+              "instant": false,
+              "range": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "cores"
+            },
+            "overrides": []
+          },
+          "options": {}
+        }
+      ]
+    }
