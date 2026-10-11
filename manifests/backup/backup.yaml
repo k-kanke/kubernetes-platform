@@ -1,4 +1,5 @@
-# Nightly encrypted backup of everything under /opt/local-path-provisioner on the worker
+# Nightly encrypted backup of everything under /opt/local-path-provisioner on each worker
+# (one CronJob per node, because local-path volumes live on one node only)
 # (Control Plane SQLite + every app's Source/Data PVC) to Cloudflare R2 with restic.
 #
 # Created out-of-band (never committed):
@@ -29,11 +30,11 @@ data:
     # First run: create the repository.
     restic cat config >/dev/null 2>&1 || { echo "initializing repository"; restic init; }
 
-    restic backup /data --host aap-worker --tag nightly --one-file-system \
+    restic backup /data --host "$BACKUP_HOST" --tag nightly --one-file-system \
       --exclude '*.tmp' --exclude '*/lost+found'
 
     # Keep 7 daily, 4 weekly, 6 monthly snapshots.
-    restic forget --host aap-worker --group-by host --keep-daily 7 --keep-weekly 4 --keep-monthly 6 --prune
+    restic forget --host "$BACKUP_HOST" --group-by host --keep-daily 7 --keep-weekly 4 --keep-monthly 6 --prune
 
     # Verify repository structure, plus a random 5% of the stored data each night.
     restic check --read-data-subset=5%
@@ -70,6 +71,78 @@ spec:
                   value: s3:https://3d02f033a8caea8ea349d05b4a3b8c60.r2.cloudflarestorage.com/kanke-aap-gen-backup/restic
                 - name: AWS_DEFAULT_REGION
                   value: auto
+                - name: BACKUP_HOST
+                  value: aap-worker
+                - name: RESTIC_CACHE_DIR
+                  value: /cache
+                - name: AWS_ACCESS_KEY_ID
+                  valueFrom: { secretKeyRef: { name: restic-r2, key: access-key-id } }
+                - name: AWS_SECRET_ACCESS_KEY
+                  valueFrom: { secretKeyRef: { name: restic-r2, key: secret-access-key } }
+                - name: RESTIC_PASSWORD
+                  valueFrom: { secretKeyRef: { name: restic-r2, key: restic-password } }
+              resources:
+                requests: { cpu: 50m, memory: 128Mi }
+                limits: { cpu: "1", memory: 512Mi }
+              securityContext:
+                # root only to read files owned by the apps' users; nothing else is granted.
+                runAsUser: 0
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ["ALL"]
+                  add: ["DAC_READ_SEARCH"]
+              volumeMounts:
+                - { name: data, mountPath: /data, readOnly: true }
+                - { name: cache, mountPath: /cache }
+                - { name: tmp, mountPath: /tmp }
+                - { name: script, mountPath: /scripts }
+          volumes:
+            - name: data
+              hostPath:
+                path: /opt/local-path-provisioner
+                type: Directory
+            - name: cache
+              emptyDir: {}
+            - name: tmp
+              emptyDir: {}
+            - name: script
+              configMap:
+                name: backup-script
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: restic-backup-worker-02
+  namespace: backup
+spec:
+  schedule: "30 3 * * *"
+  timeZone: Asia/Tokyo
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 3600
+      template:
+        spec:
+          restartPolicy: Never
+          automountServiceAccountToken: false
+          # local-path volumes live on this node only.
+          nodeSelector:
+            kubernetes.io/hostname: ubuntu-worker-02
+          containers:
+            - name: restic
+              image: restic/restic:0.19.1
+              command: ["/bin/sh", "/scripts/backup.sh"]
+              env:
+                - name: RESTIC_REPOSITORY
+                  value: s3:https://3d02f033a8caea8ea349d05b4a3b8c60.r2.cloudflarestorage.com/kanke-aap-gen-backup/restic
+                - name: AWS_DEFAULT_REGION
+                  value: auto
+                - name: BACKUP_HOST
+                  value: aap-worker-02
                 - name: RESTIC_CACHE_DIR
                   value: /cache
                 - name: AWS_ACCESS_KEY_ID
