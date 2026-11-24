@@ -1,0 +1,28 @@
+---
+# e1000e ハング対策: 起動時に TSO/GSO/GRO を無効化
+- name: Ensure ethtool is installed
+  ansible.builtin.apt:
+    name: ethtool
+    state: present
+
+- name: Disable offloads on boot (post-up in /etc/network/interfaces)
+  ansible.builtin.lineinfile:
+    path: /etc/network/interfaces
+    insertafter: '^iface {{ nic_name }} inet manual'
+    line: "        post-up /usr/sbin/ethtool -K {{ nic_name }} tso off gso off gro off"
+    backup: true
+
+# ifreload -a はネットワークが瞬断しうるので流さず、ethtool を直接適用する
+- name: Read current offload state
+  ansible.builtin.command: ethtool -k {{ nic_name }}
+  register: offload_state
+  changed_when: false
+  check_mode: false
+
+- name: Disable offloads now
+  ansible.builtin.command: ethtool -K {{ nic_name }} tso off gso off gro off
+  when: >-
+    offload_state.stdout is search('tcp-segmentation-offload: on')
+    or offload_state.stdout is search('generic-segmentation-offload: on')
+    or offload_state.stdout is search('generic-receive-offload: on')
+  changed_when: true
