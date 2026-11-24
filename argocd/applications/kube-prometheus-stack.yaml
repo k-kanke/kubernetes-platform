@@ -15,14 +15,9 @@ spec:
 
     helm:
       values: |
+        # Grafana は k8s の外 (pve-nec 上の LXC, 192.168.0.13:3000) で動かす
         grafana:
-          startupProbe:
-            httpGet:
-              path: /api/health
-              port: grafana
-            periodSeconds: 10
-            timeoutSeconds: 5
-            failureThreshold: 60
+          enabled: false
 
         prometheus:
           service:
