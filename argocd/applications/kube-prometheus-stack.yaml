@@ -24,6 +24,11 @@ spec:
             timeoutSeconds: 5
             failureThreshold: 60
 
+        prometheus:
+          service:
+            type: NodePort
+            nodePort: 30090
+
         prometheusOperator:
           livenessProbe:
             initialDelaySeconds: 120
