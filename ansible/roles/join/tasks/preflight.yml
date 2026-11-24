@@ -1,0 +1,25 @@
+---
+- name: Read containerd config
+  ansible.builtin.command: grep -E '^disabled_plugins' /etc/containerd/config.toml
+  register: disabled_plugins
+  changed_when: false
+  check_mode: false
+
+- name: Read ip_forward
+  ansible.builtin.slurp:
+    src: /proc/sys/net/ipv4/ip_forward
+  register: ip_forward
+
+- name: Read active swap
+  ansible.builtin.command: swapon --show --noheadings
+  register: swap_active
+  changed_when: false
+  check_mode: false
+
+- name: Assert preconditions
+  ansible.builtin.assert:
+    that:
+      - "'[]' in disabled_plugins.stdout"
+      - (ip_forward.content | b64decode | trim) == '1'
+      - swap_active.stdout | trim == ''
+    fail_msg: "CRI disabled / ip_forward!=1 / swap active — join would fail preflight"
