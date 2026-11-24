@@ -1,0 +1,35 @@
+---
+# 手順書 4-7: join 前の確認（失敗した preflight を事前に検出）
+- name: Check join preconditions
+  ansible.builtin.include_tasks: preflight.yml
+
+- name: Check whether node already joined
+  ansible.builtin.stat:
+    path: /etc/kubernetes/kubelet.conf
+  register: kubelet_conf
+
+# 手順書 4-8
+- name: Create short-lived join command on control-plane
+  ansible.builtin.command: kubeadm token create --print-join-command --ttl {{ join_token_ttl }}
+  delegate_to: "{{ control_plane_host }}"
+  register: join_command
+  changed_when: true
+  no_log: true
+  when: not kubelet_conf.stat.exists
+
+- name: Run kubeadm join
+  ansible.builtin.command: "{{ join_command.stdout }}"
+  no_log: true
+  changed_when: true
+  when: not kubelet_conf.stat.exists
+
+- name: Label node with physical host zone
+  ansible.builtin.command: >-
+    kubectl label node {{ inventory_hostname }}
+    topology.kubernetes.io/zone={{ physical_host }} --overwrite
+  environment:
+    KUBECONFIG: "{{ kubectl_kubeconfig }}"
+  delegate_to: "{{ control_plane_host }}"
+  register: zone_label
+  changed_when: "'not labeled' not in zone_label.stdout and 'unchanged' not in zone_label.stdout"
+  when: physical_host is defined

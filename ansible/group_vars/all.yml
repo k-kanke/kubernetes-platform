@@ -1,0 +1,13 @@
+---
+# バージョンはここだけに書く（ノード間のずれ防止がこのコード化の主目的）
+k8s_minor: "1.36"
+k8s_version: "1.36.4-1.1"
+containerd_version: "2.3.3-1~ubuntu.26.04~resolute"
+
+# join 先 (control-plane)
+control_plane_host: ubuntu-26
+control_plane_endpoint: "192.168.0.20:6443"
+join_token_ttl: 10m
+
+# ノード上で kubectl を実行するときの kubeconfig（control-plane）
+kubectl_kubeconfig: /etc/kubernetes/admin.conf

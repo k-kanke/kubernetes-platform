@@ -1,0 +1,69 @@
+---
+# 手順書 4-6
+- name: Install apt prerequisites
+  ansible.builtin.apt:
+    name: [apt-transport-https, ca-certificates, curl, gpg]
+    state: present
+
+- name: Ensure /etc/apt/keyrings exists
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+
+- name: Add Kubernetes apt key (dearmored)
+  ansible.builtin.shell: >-
+    curl -fsSL https://pkgs.k8s.io/core:/stable:/v{{ k8s_minor }}/deb/Release.key
+    | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+  args:
+    creates: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+
+- name: Add Kubernetes apt repository
+  ansible.builtin.apt_repository:
+    repo: >-
+      deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg]
+      https://pkgs.k8s.io/core:/stable:/v{{ k8s_minor }}/deb/ /
+    filename: kubernetes
+    state: present
+    update_cache: true
+
+- name: Get installed Kubernetes package versions
+  ansible.builtin.command: dpkg-query -W -f='${Version}' {{ item }}
+  loop: [kubelet, kubeadm, kubectl]
+  register: k8s_installed
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+# hold 中は apt がバージョン変更を拒否するため、バージョンが違うときだけ解除する
+- name: Unhold Kubernetes packages (only when version differs)
+  ansible.builtin.dpkg_selections:
+    name: "{{ item.item }}"
+    selection: install
+  loop: "{{ k8s_installed.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when:
+    - item.rc == 0
+    - item.stdout != k8s_version
+
+- name: Install pinned Kubernetes packages
+  ansible.builtin.apt:
+    name:
+      - "kubelet={{ k8s_version }}"
+      - "kubeadm={{ k8s_version }}"
+      - "kubectl={{ k8s_version }}"
+    state: present
+    allow_downgrade: true
+
+- name: Hold Kubernetes packages
+  ansible.builtin.dpkg_selections:
+    name: "{{ item }}"
+    selection: hold
+  loop: [kubelet, kubeadm, kubectl]
+
+- name: Install cri-tools (optional)
+  ansible.builtin.apt:
+    name: cri-tools
+    state: present
+  when: kubernetes_install_cri_tools | default(false)

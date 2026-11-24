@@ -1,0 +1,84 @@
+---
+# 手順書 4-4
+- name: Install apt prerequisites
+  ansible.builtin.apt:
+    name: [ca-certificates, curl, gpg]
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Ensure /etc/apt/keyrings exists
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+
+- name: Add Docker apt key
+  ansible.builtin.get_url:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    dest: /etc/apt/keyrings/docker.asc
+    mode: "0644"
+
+- name: Add Docker apt repository
+  ansible.builtin.apt_repository:
+    repo: >-
+      deb [arch={{ 'amd64' if ansible_facts.architecture == 'x86_64' else ansible_facts.architecture }}
+      signed-by=/etc/apt/keyrings/docker.asc]
+      https://download.docker.com/linux/ubuntu {{ ansible_facts.distribution_release }} stable
+    filename: docker
+    state: present
+    update_cache: true
+
+# 手順書 5 章: Ubuntu 公式の containerd / runc が入っていれば除去（containerd.io が置き換える）
+- name: Remove Ubuntu-packaged containerd/runc (replaced by containerd.io)
+  ansible.builtin.apt:
+    name: [containerd, runc]
+    state: absent
+
+# hold 中は apt がバージョン変更を拒否するため、バージョンが違うときだけ解除する
+- name: Get installed containerd.io version
+  ansible.builtin.command: dpkg-query -W -f='${Version}' containerd.io
+  register: containerd_installed
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Unhold containerd.io (only when version differs)
+  ansible.builtin.dpkg_selections:
+    name: containerd.io
+    selection: install
+  when:
+    - containerd_installed.rc == 0
+    - containerd_installed.stdout != containerd_version
+
+- name: Install pinned containerd.io
+  ansible.builtin.apt:
+    name: "containerd.io={{ containerd_version }}"
+    state: present
+    allow_downgrade: true
+  notify: Restart containerd
+
+- name: Hold containerd.io
+  ansible.builtin.dpkg_selections:
+    name: containerd.io
+    selection: hold
+
+# 手順書 4-5
+- name: Deploy containerd config
+  ansible.builtin.copy:
+    src: containerd-config.toml
+    dest: /etc/containerd/config.toml
+    owner: root
+    group: root
+    mode: "0644"
+    backup: true
+  notify: Restart containerd
+
+- name: Enable and start containerd
+  ansible.builtin.systemd:
+    name: containerd
+    enabled: true
+    state: started
+
+- name: Apply pending containerd restart now (before join)
+  ansible.builtin.meta: flush_handlers

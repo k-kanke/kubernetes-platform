@@ -1,0 +1,17 @@
+---
+# 使い方:
+#   既存ノードの差分確認: ansible-playbook site.yml --check --diff
+#   新規ノード追加:       ansible-playbook site.yml --limit ubuntu-worker-04
+- name: Node preparation (all nodes)
+  hosts: all
+  become: true
+  roles:
+    - common
+    - containerd
+    - kubernetes
+
+- name: Join workers to the cluster
+  hosts: workers
+  become: true
+  roles:
+    - join
