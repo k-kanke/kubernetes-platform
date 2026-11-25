@@ -78,6 +78,16 @@ spec:
               value: "true"
             - name: AAP_TASKS_NAMESPACE
               value: aap-agents
+            # Publishing approved tasks as pull requests. Needs a GitHub App: Secret platform-system/github-app with
+            # keys app-id and private-key.pem (created by hand, never committed; see ai-app-platform
+            # docs/multi-agent-github-app.md). Without it, approved tasks stay APPROVED and no PR is opened.
+            - name: AAP_PUBLISHER_IMAGE
+              value: ghcr.io/k-kanke/ai-app-platform/publisher:latest
+            - name: AAP_GITHUB_APP_ID
+              valueFrom:
+                secretKeyRef: { name: github-app, key: app-id, optional: true }
+            - name: AAP_GITHUB_APP_KEY_FILE
+              value: /var/run/github-app/private-key.pem
             - name: AAP_TOKEN_SECRET
               valueFrom:
                 secretKeyRef:
@@ -99,10 +109,17 @@ spec:
           volumeMounts:
             - name: db
               mountPath: /var/lib/aap
+            - name: github-app
+              mountPath: /var/run/github-app
+              readOnly: true
       volumes:
         - name: db
           persistentVolumeClaim:
             claimName: control-plane-db
+        - name: github-app
+          secret:
+            secretName: github-app
+            optional: true
 ---
 apiVersion: v1
 kind: Service

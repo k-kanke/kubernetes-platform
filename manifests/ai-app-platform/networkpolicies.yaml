@@ -89,6 +89,12 @@ spec:
           podSelector:
             matchLabels:
               aap.dev/role: implementer
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: aap-agents
+          podSelector:
+            matchLabels:
+              aap.dev/role: publisher
         # genkan (tailnet-only operator UI) shows tasks and approves patches through its nginx proxy.
         - namespaceSelector:
             matchLabels:
@@ -153,6 +159,43 @@ spec:
   podSelector:
     matchLabels:
       aap.dev/role: implementer
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: platform-system
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: control-plane
+      ports:
+        - { protocol: TCP, port: 8080 }
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except: ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "100.64.0.0/10", "169.254.0.0/16"]
+      ports:
+        - { protocol: TCP, port: 443 }
+---
+# Publisher (fixed code, no LLM): DNS, the Control Plane (download the approved patch, report the PR) and
+# HTTPS to GitHub. It is the only pod that holds a GitHub token (1 hour, one repository).
+# Not allowed: other namespaces, the cluster API, the home LAN.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: publisher-egress
+  namespace: aap-agents
+spec:
+  podSelector:
+    matchLabels:
+      aap.dev/role: publisher
   policyTypes: ["Egress"]
   egress:
     - to:

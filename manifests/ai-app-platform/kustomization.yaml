@@ -7,3 +7,4 @@ resources:
   - portal.yaml
   - networkpolicies.yaml
   - aap-agents-limits.yaml
+  - aap-agents-admission.yaml

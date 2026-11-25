@@ -1,0 +1,83 @@
+# Admission rules for the multi-agent namespace (ai-app-platform docs/multi-agent-permissions.md §5.4).
+#
+# The Control Plane already creates Jobs with these properties; this makes them hold even if the Control Plane
+# has a bug or is compromised, or someone creates a pod by hand. PodSecurity `restricted` (namespace label)
+# covers privileged / root / capabilities / seccomp; this adds what it does not know:
+#   - no ServiceAccount token, no Secret volumes, only PVC / emptyDir volumes, no host namespaces
+#   - Secrets may only be referenced as `agent-credentials` envFrom of an Implementer (interim; Phase 3 removes it)
+#   - every pod has a known role label (so the role's NetworkPolicy always applies) and cpu+memory limits
+#   - every Job has a deadline of at most one hour
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: aap-agents-pods
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["pods"]
+  variables:
+    - name: role
+      expression: "has(object.metadata.labels) && 'aap.dev/role' in object.metadata.labels ? object.metadata.labels['aap.dev/role'] : ''"
+    - name: containers
+      expression: "object.spec.containers + (has(object.spec.initContainers) ? object.spec.initContainers : [])"
+  validations:
+    - expression: "variables.role in ['implementer', 'publisher']"
+      message: "pods in aap-agents must carry the label aap.dev/role=implementer|publisher"
+    - expression: "has(object.spec.automountServiceAccountToken) && object.spec.automountServiceAccountToken == false"
+      message: "pods in aap-agents must not get a ServiceAccount token (automountServiceAccountToken: false)"
+    - expression: "!has(object.spec.volumes) || object.spec.volumes.all(v, has(v.persistentVolumeClaim) || has(v.emptyDir))"
+      message: "only persistentVolumeClaim and emptyDir volumes are allowed (no Secret, ConfigMap, hostPath, projected)"
+    - expression: "(!has(object.spec.hostNetwork) || !object.spec.hostNetwork) && (!has(object.spec.hostPID) || !object.spec.hostPID) && (!has(object.spec.hostIPC) || !object.spec.hostIPC)"
+      message: "host namespaces are not allowed"
+    - expression: "variables.containers.all(c, !has(c.env) || c.env.all(e, !has(e.valueFrom) || !has(e.valueFrom.secretKeyRef)))"
+      message: "Secrets must not be injected with secretKeyRef"
+    - expression: "variables.containers.all(c, !has(c.envFrom) || c.envFrom.all(e, !has(e.secretRef) || (e.secretRef.name == 'agent-credentials' && variables.role == 'implementer')))"
+      message: "the only Secret a pod may reference is agent-credentials, and only an implementer"
+    - expression: "variables.containers.all(c, has(c.resources) && has(c.resources.limits) && 'cpu' in c.resources.limits && 'memory' in c.resources.limits)"
+      message: "every container needs cpu and memory limits"
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: aap-agents-pods
+spec:
+  policyName: aap-agents-pods
+  validationActions: ["Deny"]
+  matchResources:
+    namespaceSelector:
+      matchLabels:
+        kubernetes.io/metadata.name: aap-agents
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: aap-agents-jobs
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups: ["batch"]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["jobs"]
+  validations:
+    - expression: "has(object.spec.activeDeadlineSeconds) && object.spec.activeDeadlineSeconds > 0 && object.spec.activeDeadlineSeconds <= 3600"
+      message: "every Job in aap-agents needs activeDeadlineSeconds of at most 3600"
+    - expression: "has(object.spec.backoffLimit) && object.spec.backoffLimit == 0"
+      message: "Jobs in aap-agents must not retry on their own (backoffLimit: 0)"
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: aap-agents-jobs
+spec:
+  policyName: aap-agents-jobs
+  validationActions: ["Deny"]
+  matchResources:
+    namespaceSelector:
+      matchLabels:
+        kubernetes.io/metadata.name: aap-agents
