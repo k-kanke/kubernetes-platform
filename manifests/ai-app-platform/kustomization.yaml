@@ -9,4 +9,3 @@ resources:
   - aap-agents-limits.yaml
   - aap-agents-admission.yaml
   - llm-gateway.yaml
-  - cilium-policies.yaml

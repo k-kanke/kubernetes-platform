@@ -1,3 +1,9 @@
+# EXPERIMENTAL, NOT APPLIED (not listed in kustomization.yaml). Tried on 2026-11-25 and it does not work on this cluster:
+# with these policies the pod's DNS queries time out (even to the allowed names) although the Cilium DNS proxy instance is
+# created and no policy drop is logged. The cluster runs Cilium 1.18.2 with kube-proxy-replacement=false and bpf-lb-sock=false
+# (kube-proxy does the Service translation), which is the likely cause; adding toCIDR 10.96.0.10/32 for the kube-dns Service IP
+# did not help. Retry after enabling kube-proxy replacement (or socket LB) in Cilium. See ai-app-platform docs/multi-agent-impl-log.md.
+#
 # FQDN allow lists (Cilium) for the multi-agent namespace. They replace the plain "HTTPS to anywhere outside the LAN"
 # NetworkPolicies: with them, a compromised Implementer can reach only the Control Plane, the LLM gateway and the few
 # hosts a build needs; a Publisher only GitHub; the gateway only the LLM provider. Cilium unions all policies that
