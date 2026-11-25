@@ -80,3 +80,35 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
   name: control-plane
+---
+# The deploy step (ai-app-platform docs/multi-agent-execution-plan.md): after a task's pull request is merged, the Control
+# Plane rolls the repository's Deployment onto the newly built image. It may do exactly that in `genkan`: read the pods
+# of the Deployment (to see which image they run) and read + patch the Deployment `genkan` (the restart annotation).
+# Nothing else in the namespace, and nothing in any other namespace.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: control-plane-deploy
+  namespace: genkan
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    resourceNames: ["genkan"]
+    verbs: ["get", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: control-plane-deploy
+  namespace: genkan
+subjects:
+  - kind: ServiceAccount
+    name: control-plane
+    namespace: platform-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: control-plane-deploy

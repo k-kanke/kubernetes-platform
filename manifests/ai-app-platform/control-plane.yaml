@@ -84,6 +84,10 @@ spec:
             # Implementers reach the LLM only through the gateway, with a per-task token (no provider key in the pod).
             - name: AAP_LLM_GATEWAY_URL
               value: http://llm-gateway.platform-system.svc:8080
+            # After a task's pull request is merged: wait for CI's image (tagged sha-<merge commit>) and roll the Deployment onto it.
+            # A repository that is not listed here is not deployed (the task ends at its pull request).
+            - name: AAP_DEPLOY_TARGETS
+              value: '[{"repo":"k-kanke/genkan","namespace":"genkan","deployment":"genkan","image":"ghcr.io/k-kanke/genkan","tag":"latest"}]'
             - name: AAP_PUBLISHER_IMAGE
               value: ghcr.io/k-kanke/ai-app-platform/publisher:latest
             - name: AAP_GITHUB_APP_ID
