@@ -4,7 +4,7 @@
 # has a bug or is compromised, or someone creates a pod by hand. PodSecurity `restricted` (namespace label)
 # covers privileged / root / capabilities / seccomp; this adds what it does not know:
 #   - no ServiceAccount token, no Secret volumes, only PVC / emptyDir volumes, no host namespaces
-#   - Secrets may only be referenced as `agent-credentials` envFrom of an Implementer (interim; Phase 3 removes it)
+#   - no Secret reference at all: the LLM key lives in the gateway, the Publisher's GitHub token is a one-hour plain value
 #   - every pod has a known role label (so the role's NetworkPolicy always applies) and cpu+memory limits
 #   - every Job has a deadline of at most one hour
 apiVersion: admissionregistration.k8s.io/v1
@@ -35,8 +35,8 @@ spec:
       message: "host namespaces are not allowed"
     - expression: "variables.containers.all(c, !has(c.env) || c.env.all(e, !has(e.valueFrom) || !has(e.valueFrom.secretKeyRef)))"
       message: "Secrets must not be injected with secretKeyRef"
-    - expression: "variables.containers.all(c, !has(c.envFrom) || c.envFrom.all(e, !has(e.secretRef) || (e.secretRef.name == 'agent-credentials' && variables.role == 'implementer')))"
-      message: "the only Secret a pod may reference is agent-credentials, and only an implementer"
+    - expression: "variables.containers.all(c, !has(c.envFrom) || c.envFrom.all(e, !has(e.secretRef)))"
+      message: "pods in aap-agents must not reference Secrets at all (the LLM key lives in the gateway; the Publisher gets a one-hour token as a plain value)"
     - expression: "variables.containers.all(c, has(c.resources) && has(c.resources.limits) && 'cpu' in c.resources.limits && 'memory' in c.resources.limits)"
       message: "every container needs cpu and memory limits"
 ---

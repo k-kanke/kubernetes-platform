@@ -1,0 +1,79 @@
+# FQDN allow lists (Cilium) for the multi-agent namespace. They replace the plain "HTTPS to anywhere outside the LAN"
+# NetworkPolicies: with them, a compromised Implementer can reach only the Control Plane, the LLM gateway and the few
+# hosts a build needs; a Publisher only GitHub; the gateway only the LLM provider. Cilium unions all policies that
+# select a pod, so the plain egress NetworkPolicies were removed (only default-deny stays).
+# kind (the dev cluster) has no Cilium: hack/e2e-tasks-kind.sh drops these objects there.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: implementer-egress
+  namespace: aap-agents
+spec:
+  endpointSelector:
+    matchLabels: { aap.dev/role: implementer }
+  egress:
+    - toEndpoints:
+        - matchLabels: { io.kubernetes.pod.namespace: kube-system, k8s-app: kube-dns }
+      toPorts:
+        - ports: [{ port: "53", protocol: ANY }]
+          rules:
+            dns: [{ matchPattern: "*" }]
+    - toEndpoints:
+        - matchLabels: { io.kubernetes.pod.namespace: platform-system, app.kubernetes.io/name: control-plane }
+        - matchLabels: { io.kubernetes.pod.namespace: platform-system, app.kubernetes.io/name: llm-gateway }
+      toPorts:
+        - ports: [{ port: "8080", protocol: TCP }]
+    - toFQDNs:
+        - matchName: github.com            # git clone (init container)
+        - matchName: registry.npmjs.org    # npm
+        - matchName: proxy.golang.org      # go modules
+        - matchName: sum.golang.org
+        - matchName: pypi.org              # pip
+        - matchName: files.pythonhosted.org
+      toPorts:
+        - ports: [{ port: "443", protocol: TCP }]
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: publisher-egress
+  namespace: aap-agents
+spec:
+  endpointSelector:
+    matchLabels: { aap.dev/role: publisher }
+  egress:
+    - toEndpoints:
+        - matchLabels: { io.kubernetes.pod.namespace: kube-system, k8s-app: kube-dns }
+      toPorts:
+        - ports: [{ port: "53", protocol: ANY }]
+          rules:
+            dns: [{ matchPattern: "*" }]
+    - toEndpoints:
+        - matchLabels: { io.kubernetes.pod.namespace: platform-system, app.kubernetes.io/name: control-plane }
+      toPorts:
+        - ports: [{ port: "8080", protocol: TCP }]
+    - toFQDNs:
+        - matchName: github.com
+        - matchName: api.github.com
+      toPorts:
+        - ports: [{ port: "443", protocol: TCP }]
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: llm-gateway-egress
+  namespace: platform-system
+spec:
+  endpointSelector:
+    matchLabels: { app.kubernetes.io/name: llm-gateway }
+  egress:
+    - toEndpoints:
+        - matchLabels: { io.kubernetes.pod.namespace: kube-system, k8s-app: kube-dns }
+      toPorts:
+        - ports: [{ port: "53", protocol: ANY }]
+          rules:
+            dns: [{ matchPattern: "*" }]
+    - toFQDNs:
+        - matchName: generativelanguage.googleapis.com
+      toPorts:
+        - ports: [{ port: "443", protocol: TCP }]
