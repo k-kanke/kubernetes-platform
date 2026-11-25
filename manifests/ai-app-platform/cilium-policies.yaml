@@ -18,6 +18,11 @@ spec:
         - ports: [{ port: "53", protocol: ANY }]
           rules:
             dns: [{ matchPattern: "*" }]
+    - toCIDR: ["10.96.0.10/32"] # the kube-dns Service IP: without kube-proxy replacement the pod's DNS query still carries it
+      toPorts:
+        - ports: [{ port: "53", protocol: ANY }]
+          rules:
+            dns: [{ matchPattern: "*" }]
     - toEndpoints:
         - matchLabels: { io.kubernetes.pod.namespace: platform-system, app.kubernetes.io/name: control-plane }
         - matchLabels: { io.kubernetes.pod.namespace: platform-system, app.kubernetes.io/name: llm-gateway }
@@ -48,6 +53,11 @@ spec:
         - ports: [{ port: "53", protocol: ANY }]
           rules:
             dns: [{ matchPattern: "*" }]
+    - toCIDR: ["10.96.0.10/32"] # the kube-dns Service IP: without kube-proxy replacement the pod's DNS query still carries it
+      toPorts:
+        - ports: [{ port: "53", protocol: ANY }]
+          rules:
+            dns: [{ matchPattern: "*" }]
     - toEndpoints:
         - matchLabels: { io.kubernetes.pod.namespace: platform-system, app.kubernetes.io/name: control-plane }
       toPorts:
@@ -69,6 +79,11 @@ spec:
   egress:
     - toEndpoints:
         - matchLabels: { io.kubernetes.pod.namespace: kube-system, k8s-app: kube-dns }
+      toPorts:
+        - ports: [{ port: "53", protocol: ANY }]
+          rules:
+            dns: [{ matchPattern: "*" }]
+    - toCIDR: ["10.96.0.10/32"] # the kube-dns Service IP: without kube-proxy replacement the pod's DNS query still carries it
       toPorts:
         - ports: [{ port: "53", protocol: ANY }]
           rules:
