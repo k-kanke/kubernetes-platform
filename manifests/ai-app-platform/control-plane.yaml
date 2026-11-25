@@ -71,6 +71,13 @@ spec:
               value: gemini-3.8-flash # only used when AAP_AGENT=gemini
             - name: AAP_AGENT_SECRET_NAME
               value: agent-credentials # optional Secret in aap-apps with ANTHROPIC_API_KEY
+            # Repository tasks (ai-app-platform docs/multi-agent-execution-plan.md): workspace PVC + Implementer Job per
+            # task in aap-agents. The agent is the same AAP_AGENT; its LLM key is read from a Secret of the same name
+            # in aap-agents (interim: Phase 3 replaces it with an LLM gateway).
+            - name: AAP_TASKS_ENABLED
+              value: "true"
+            - name: AAP_TASKS_NAMESPACE
+              value: aap-agents
             - name: AAP_TOKEN_SECRET
               valueFrom:
                 secretKeyRef:
