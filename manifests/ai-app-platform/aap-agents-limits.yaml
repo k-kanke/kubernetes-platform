@@ -12,9 +12,9 @@ spec:
     requests.memory: 4Gi
     limits.cpu: "4"
     limits.memory: 6Gi
-    persistentvolumeclaims: "8"
-    requests.storage: 16Gi
-    count/jobs.batch: "12"
+    persistentvolumeclaims: "12" # only failed tasks keep a workspace (until retention); finished ones release it
+    requests.storage: 24Gi
+    count/jobs.batch: "30" # an Implementer and a Publisher per task, kept for their logs until retention
 ---
 # Defaults for containers that do not set their own (Job pods set explicit limits).
 apiVersion: v1
