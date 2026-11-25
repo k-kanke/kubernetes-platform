@@ -6,3 +6,4 @@ resources:
   - control-plane.yaml
   - portal.yaml
   - networkpolicies.yaml
+  - aap-agents-limits.yaml

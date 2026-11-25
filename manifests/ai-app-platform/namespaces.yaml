@@ -15,3 +15,16 @@ metadata:
   labels:
     pod-security.kubernetes.io/enforce: baseline
     pod-security.kubernetes.io/warn: restricted
+---
+# Multi-agent tasks (docs/multi-agent-permissions.md in ai-app-platform): one workspace PVC per
+# task plus short-lived Implementer / Publisher Jobs. Kept apart from aap-apps (family apps) so
+# its network, quota and admission rules can be decided on their own. `restricted` is enforced:
+# nothing here needs the CHOWN/FOWNER capabilities that the aap-apps helper Job uses.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: aap-agents
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted

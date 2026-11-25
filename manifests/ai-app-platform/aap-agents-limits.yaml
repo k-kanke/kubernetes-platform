@@ -1,0 +1,32 @@
+# Upper bounds for the multi-agent namespace: a runaway task cannot take the whole cluster.
+# Workers are small (see ai-app-platform docs/storage-decision.md), so keep these modest.
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: aap-agents
+  namespace: aap-agents
+spec:
+  hard:
+    pods: "6"
+    requests.cpu: "3"
+    requests.memory: 4Gi
+    limits.cpu: "4"
+    limits.memory: 6Gi
+    persistentvolumeclaims: "8"
+    requests.storage: 16Gi
+    count/jobs.batch: "12"
+---
+# Defaults for containers that do not set their own (Job pods set explicit limits).
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: aap-agents
+  namespace: aap-agents
+spec:
+  limits:
+    - type: Container
+      default: { cpu: "500m", memory: 512Mi }
+      defaultRequest: { cpu: 50m, memory: 64Mi }
+      max: { cpu: "2", memory: 2Gi }
+    - type: PersistentVolumeClaim
+      max: { storage: 4Gi }
